@@ -28,8 +28,6 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 import qunit from 'eslint-plugin-qunit';
 import n from 'eslint-plugin-n';
 
-import babelParser from '@babel/eslint-parser/experimental-worker';
-
 const parserOptions = {
   esm: {
     js: {
@@ -62,7 +60,7 @@ export default defineConfig([
   {
     files: ['**/*.js'],
     languageOptions: {
-      parser: babelParser,
+      parser: ember.parser,
     },
   },
   {
