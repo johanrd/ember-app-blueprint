@@ -28,7 +28,44 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 import qunit from 'eslint-plugin-qunit';
 import n from 'eslint-plugin-n';
 
-import babelParser from '@babel/eslint-parser/experimental-worker';
+import babelParserBase from '@babel/eslint-parser/experimental-worker';
+
+// @babel/eslint-parser@7.x uses eslint-scope@5 internally, which predates
+// the addGlobals() method ESLint 10 requires on every scope manager.
+const babelParser = {
+  meta: { name: '@babel/eslint-parser', version: '7.x' },
+  parseForESLint(code, options) {
+    const result = babelParserBase.parseForESLint(code, options);
+    if (result.scopeManager && !result.scopeManager.addGlobals) {
+      result.scopeManager.addGlobals = function (names) {
+        const globalScope = this.globalScope;
+        if (!globalScope) return;
+        const namesSet = new Set(names);
+        for (const name of names) {
+          if (!globalScope.set.has(name)) {
+            const variable = {
+              name,
+              scope: globalScope,
+              identifiers: [],
+              references: [],
+              defs: [],
+            };
+            globalScope.set.set(name, variable);
+            globalScope.variables.push(variable);
+          }
+        }
+        globalScope.through = globalScope.through.filter((ref) => {
+          if (!namesSet.has(ref.identifier.name)) return true;
+          const variable = globalScope.set.get(ref.identifier.name);
+          ref.resolved = variable;
+          variable.references.push(ref);
+          return false;
+        });
+      };
+    }
+    return result;
+  },
+};
 
 const parserOptions = {
   esm: {
